@@ -54,6 +54,8 @@ def parse_docx(file_path, image_files, wp_upload_media_func):
     # Since we ignore ALL embedded docx images, the unique check image is automatically ignored.
     # If there is also text for check unique, they didn't explicitly say to remove a specific text, just "bỏ qua ảnh đó là được".
     
+    used_images = set()
+
     for p in body_paragraphs:
         text = p.text.strip()
         if not text:
@@ -64,16 +66,22 @@ def parse_docx(file_path, image_files, wp_upload_media_func):
         
         if line_slug in image_map:
             # It's an image!
+            used_images.add(line_slug)
             img_file_path = image_map[line_slug]
             alt_text = text # Original Vietnamese text with accents
             
             # Upload the image and get URL
-            # Note: This makes the parsing process blocking and requires network.
-            # We could separate it, but doing it inline is straightforward.
             try:
-                img_url = wp_upload_media_func(img_file_path, alt_text)
+                img_res = wp_upload_media_func(img_file_path, alt_text)
+                img_url = img_res['url'] if isinstance(img_res, dict) else img_res
+                media_id = img_res['id'] if isinstance(img_res, dict) else ""
+                
                 # Build HTML img tag
-                img_html = f'<p><img src="{img_url}" alt="{alt_text}" class="aligncenter" /></p>'
+                if media_id:
+                    img_html = f'<div style="text-align: center;">[caption id="attachment_{media_id}" align="aligncenter"]<img src="{img_url}" alt="{alt_text}" title="{alt_text}" class="aligncenter wp-image-{media_id} size-full" style="margin: 0 auto;" /> {alt_text}[/caption]</div>'
+                else:
+                    img_html = f'<p style="text-align: center;"><img src="{img_url}" alt="{alt_text}" title="{alt_text}" class="aligncenter" style="margin: 0 auto;" /></p>'
+                
                 html_lines.append(img_html)
             except Exception as e:
                 # If upload fails, just keep the text or add a comment
@@ -105,4 +113,14 @@ def parse_docx(file_path, image_files, wp_upload_media_func):
                 
     body_html = "\n".join(html_lines)
     
-    return title, meta_desc, body_html
+    thumbnail_media_id = None
+    unused_images = [img_path for slug, img_path in image_map.items() if slug not in used_images]
+    if unused_images:
+        thumb_path = unused_images[0]
+        try:
+            thumb_res = wp_upload_media_func(thumb_path, title)
+            thumbnail_media_id = thumb_res['id'] if isinstance(thumb_res, dict) else None
+        except Exception as e:
+            html_lines.append(f'<p style="color:red;">Lỗi upload ảnh đại diện: {str(e)}</p>')
+    
+    return title, meta_desc, body_html, thumbnail_media_id

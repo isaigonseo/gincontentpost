@@ -50,7 +50,9 @@ def upload_media(url, username, password, file_path, alt_text):
         update_url = f"{api_url}/{media_id}"
         update_headers = get_auth_headers(username, password)
         update_data = {
-            'alt_text': alt_text
+            'alt_text': alt_text,
+            'description': {'raw': alt_text},
+            'caption': {'raw': alt_text}
         }
         requests.post(update_url, json=update_data, headers=update_headers)
         
@@ -62,20 +64,46 @@ def upload_media(url, username, password, file_path, alt_text):
     else:
         raise Exception(f"Lỗi upload ảnh {file_name}: {response.status_code} - {response.text}")
 
-def create_post(url, username, password, title, body, category_id, meta_desc, slug):
-    api_url = f"{url.rstrip('/')}/wp-json/wp/v2/posts"
-    
-    data = {
-        'title': title,
-        'content': body,
-        'status': 'draft', # Create as draft for safety
-        'categories': [category_id] if category_id else [],
-        'slug': slug,
-        'meta': {
-            '_yoast_wpseo_metadesc': meta_desc,
-            'rank_math_description': meta_desc
+def create_post(url, username, password, title, body, category_id, meta_desc, slug, post_type="posts", featured_media=None):
+    if post_type == "pages":
+        api_url = f"{url.rstrip('/')}/wp-json/wp/v2/pages"
+        data = {
+            'title': title,
+            'content': body,
+            'status': 'draft', # Create as draft for safety
+            'slug': slug,
+            'meta': {
+                '_yoast_wpseo_metadesc': meta_desc,
+                'rank_math_description': meta_desc
+            }
         }
-    }
+        if featured_media:
+            data['featured_media'] = featured_media
+    elif post_type == "categories":
+        api_url = f"{url.rstrip('/')}/wp-json/wp/v2/categories"
+        data = {
+            'name': title,
+            'description': body,
+            'slug': slug,
+            'meta': {
+                'wpseo_desc': meta_desc # Note: category Yoast meta uses wpseo_desc, but we'll try rank_math too if needed
+            }
+        }
+    else: # posts
+        api_url = f"{url.rstrip('/')}/wp-json/wp/v2/posts"
+        data = {
+            'title': title,
+            'content': body,
+            'status': 'draft', # Create as draft for safety
+            'categories': [category_id] if category_id else [],
+            'slug': slug,
+            'meta': {
+                '_yoast_wpseo_metadesc': meta_desc,
+                'rank_math_description': meta_desc
+            }
+        }
+        if featured_media:
+            data['featured_media'] = featured_media
 
     headers = get_auth_headers(username, password)
     headers['Content-Type'] = 'application/json'

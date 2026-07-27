@@ -173,10 +173,15 @@ class GinContentPostApp(ctk.CTk):
         self.entry_pass.grid(row=3, column=1, padx=(0, 20), pady=(0, 10), sticky="ew")
         
         self.btn_get_cats = ctk.CTkButton(wp_frame, text="Tải Danh Mục", font=self.BOLD_FONT, command=self.fetch_categories, height=40, fg_color="#2a2a35", hover_color="#3b3b4a", text_color=self.TEXT_MAIN, corner_radius=8)
-        self.btn_get_cats.grid(row=4, column=0, padx=20, pady=(10, 20), sticky="w")
+        self.btn_get_cats.grid(row=4, column=0, padx=20, pady=(10, 10), sticky="w")
         
         self.combo_cats = ctk.CTkComboBox(wp_frame, values=["(Chưa có danh mục)"], height=40, font=self.MAIN_FONT, dropdown_font=self.MAIN_FONT, border_color="#2a2a35", button_color="#2a2a35", fg_color="#0d0d12", text_color=self.TEXT_MAIN)
-        self.combo_cats.grid(row=4, column=1, padx=(0, 20), pady=(10, 20), sticky="ew")
+        self.combo_cats.grid(row=4, column=1, padx=(0, 20), pady=(10, 10), sticky="ew")
+        
+        # Row 5: Post Type
+        ctk.CTkLabel(wp_frame, text="Loại Nội Dung:", font=self.MAIN_FONT, text_color=self.TEXT_MUTED).grid(row=5, column=0, padx=20, pady=(0, 20), sticky="w")
+        self.combo_post_type = ctk.CTkComboBox(wp_frame, values=["Bài viết", "Trang", "Danh mục"], height=40, font=self.MAIN_FONT, dropdown_font=self.MAIN_FONT, border_color="#2a2a35", button_color="#2a2a35", fg_color="#0d0d12", text_color=self.TEXT_MAIN, command=self.on_post_type_change)
+        self.combo_post_type.grid(row=5, column=1, padx=(0, 20), pady=(0, 20), sticky="ew")
         
         # --- 2. Drive Links Card ---
         links_frame = ctk.CTkFrame(content_grid, **card_kwargs)
@@ -213,6 +218,14 @@ class GinContentPostApp(ctk.CTk):
         self.log_area.see("end")
         self.log_area.configure(state="disabled")
         self.update_idletasks()
+        
+    def on_post_type_change(self, value):
+        if value in ["Trang", "Danh mục"]:
+            self.combo_cats.configure(state="disabled")
+            self.btn_get_cats.configure(state="disabled")
+        else:
+            self.combo_cats.configure(state="normal")
+            self.btn_get_cats.configure(state="normal")
 
     def fetch_categories(self):
         url = self.entry_url.get().strip()
@@ -255,10 +268,13 @@ class GinContentPostApp(ctk.CTk):
             messagebox.showwarning("Thiếu thông tin", "Vui lòng nhập ít nhất 1 link thư mục Google Drive.")
             return
             
+        post_type_str = self.combo_post_type.get()
         cat_name = self.combo_cats.get()
-        if not cat_name or cat_name in ["(Chưa có danh mục)", "(Trống)"]:
-            messagebox.showwarning("Thiếu thông tin", "Vui lòng chọn Category hợp lệ.")
-            return
+        
+        if post_type_str == "Bài viết":
+            if not cat_name or cat_name in ["(Chưa có danh mục)", "(Trống)"]:
+                messagebox.showwarning("Thiếu thông tin", "Vui lòng chọn Category hợp lệ.")
+                return
             
         # Lấy danh sách link (bỏ dòng trống)
         links = [line.strip() for line in drive_text.split('\n') if line.strip()]
@@ -267,22 +283,30 @@ class GinContentPostApp(ctk.CTk):
             
         self.btn_start.configure(state="disabled")
         self.log("\n==================================")
-        self.log(f"BẮT ĐẦU QUÁ TRÌNH ĐĂNG {len(links)} BÀI")
+        self.log(f"BẮT ĐẦU QUÁ TRÌNH ĐĂNG {len(links)} BÀI ({post_type_str.upper()})")
         self.log("==================================")
         
-        threading.Thread(target=self.process_bulk_posts, args=(links, cat_name), daemon=True).start()
+        threading.Thread(target=self.process_bulk_posts, args=(links, cat_name, post_type_str), daemon=True).start()
 
-    def process_bulk_posts(self, links, cat_name):
+    def process_bulk_posts(self, links, cat_name, post_type_str):
         url = self.entry_url.get().strip()
         user = self.entry_user.get().strip()
         password = self.entry_pass.get().strip()
         
         cat_id = None
-        for c in self.categories_data:
-            if c['name'] == cat_name:
-                cat_id = c['id']
-                break
-                
+        if post_type_str == "Bài viết":
+            for c in self.categories_data:
+                if c['name'] == cat_name:
+                    cat_id = c['id']
+                    break
+        
+        if post_type_str == "Bài viết":
+            api_post_type = "posts"
+        elif post_type_str == "Trang":
+            api_post_type = "pages"
+        elif post_type_str == "Danh mục":
+            api_post_type = "categories"
+            
         success_count = 0
         error_count = 0
 
@@ -304,17 +328,20 @@ class GinContentPostApp(ctk.CTk):
                 # 3. Parse docx
                 def wp_upload_callback(file_path, alt_text):
                     self.log(f"       -> Upload ảnh: {alt_text}")
-                    res = upload_media(url, user, password, file_path, alt_text)
-                    return res['url']
+                    return upload_media(url, user, password, file_path, alt_text)
                     
-                title, meta_desc, body_html = parse_docx(docx_file, images, wp_upload_callback)
+                title, meta_desc, body_html, thumbnail_id = parse_docx(docx_file, images, wp_upload_callback)
                 
                 # 4. Create Post
                 slug_name = os.path.splitext(os.path.basename(docx_file))[0]
-                self.log(f"   [+] Đăng bài: {title} (Slug: {slug_name})")
-                post_res = create_post(url, user, password, title, body_html, cat_id, meta_desc, slug_name)
+                self.log(f"   [+] Đăng {post_type_str.lower()}: {title} (Slug: {slug_name})")
+                post_res = create_post(url, user, password, title, body_html, cat_id, meta_desc, slug_name, post_type=api_post_type, featured_media=thumbnail_id)
                 
-                self.log(f"   [V] THÀNH CÔNG! Link nháp: {post_res.get('link')}")
+                link = post_res.get('link', '')
+                if not link and post_type_str == "Danh mục":
+                    link = f"{url.rstrip('/')}/wp-admin/term.php?taxonomy=category&tag_ID={post_res.get('id', '')}"
+                    
+                self.log(f"   [V] THÀNH CÔNG! Link: {link}")
                 success_count += 1
                 
             except Exception as e:
