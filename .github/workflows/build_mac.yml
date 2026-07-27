@@ -24,10 +24,12 @@ jobs:
         
     - name: Build with PyInstaller
       run: |
-        pyinstaller --noconfirm --onefile --windowed --add-data "logo.png:." --add-data "icon.ico:." --name "GinContent Post" main.py
+        pyinstaller --noconfirm --windowed --add-data "logo.png:." --add-data "icon.ico:." --name "GinContent Post" main.py
+        cd dist
+        zip -ry GinContent-Post-Mac.zip "GinContent Post.app"
         
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
         name: GinContent-Post-Mac
-        path: "dist/"
+        path: dist/GinContent-Post-Mac.zip
