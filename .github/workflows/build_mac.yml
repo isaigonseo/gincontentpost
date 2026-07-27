@@ -24,7 +24,7 @@ jobs:
         
     - name: Build with PyInstaller
       run: |
-        pyinstaller --noconfirm --windowed --add-data "logo.png:." --add-data "icon.ico:." --name "GinContent Post" main.py
+        pyinstaller --noconfirm --windowed --add-data "logo.png:." --add-data "icon.ico:." --collect-data "certifi" --name "GinContent Post" main.py
         chmod +x "dist/GinContent Post.app/Contents/MacOS/GinContent Post"
         hdiutil create -volname "GinContent Post" -srcfolder "dist/GinContent Post.app" -ov -format UDZO "dist/GinContent-Post.dmg"
         

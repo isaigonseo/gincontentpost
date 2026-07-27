@@ -9,7 +9,7 @@ pip install -r requirements.txt
 pip install pyinstaller
 
 echo "📦 Đang tiến hành đóng gói (Build) cho macOS..."
-pyinstaller --noconfirm --windowed --add-data "logo.png:." --add-data "icon.ico:." --name "GinContent Post" main.py
+pyinstaller --noconfirm --windowed --add-data "logo.png:." --add-data "icon.ico:." --collect-data "certifi" --name "GinContent Post" main.py
 
 echo "💿 Đang tạo file DMG cài đặt..."
 hdiutil create -volname "GinContent Post" -srcfolder "dist/GinContent Post.app" -ov -format UDZO "dist/GinContent-Post.dmg"
