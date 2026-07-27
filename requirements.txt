@@ -1,0 +1,6 @@
+requests
+customtkinter
+Pillow
+gdown
+python-docx
+unidecode

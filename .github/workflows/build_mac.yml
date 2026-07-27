@@ -24,7 +24,7 @@ jobs:
         
     - name: Build with PyInstaller
       run: |
-        pyinstaller --noconfirm --onefile --windowed --name "GinContent Post" main.py
+        pyinstaller --noconfirm --onefile --windowed --add-data "logo.png:." --add-data "icon.ico:." --name "GinContent Post" main.py
         
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
