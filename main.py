@@ -8,6 +8,9 @@ import traceback
 import os
 import sys
 import io
+from datetime import datetime
+import licensing
+from PIL import Image
 
 # Fix cho Pyinstaller Windowed mode (sys.stdout bị None làm gdown/tqdm văng lỗi)
 if sys.stdout is None:
@@ -23,6 +26,14 @@ from docx_parser import parse_docx
 ctk.set_appearance_mode("Dark")
 ctk.set_default_color_theme("blue")
 
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    try:
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
+
 class GinContentPostApp(ctk.CTk):
     def __init__(self):
         super().__init__()
@@ -31,6 +42,11 @@ class GinContentPostApp(ctk.CTk):
         self.title("GinContent Post")
         self.geometry("900x700")
         self.minsize(900, 650)
+        
+        try:
+            self.iconbitmap(resource_path("icon.ico"))
+        except:
+            pass
         
         # Font chữ hiện đại
         self.MAIN_FONT = ("Product Sans", 14)
@@ -57,13 +73,71 @@ class GinContentPostApp(ctk.CTk):
         self.grid_columnconfigure(0, weight=1) 
         self.grid_rowconfigure(2, weight=1)
         
-        self.create_widgets()
+        self.check_license_on_startup()
+
+    def check_license_on_startup(self):
+        for w in self.winfo_children():
+            w.destroy()
+            
+        valid, data_or_err = licensing.check_offline_license()
+        if valid:
+            self.create_widgets()
+            try:
+                expires_at = data_or_err.get("expires_at")
+                if expires_at:
+                    exp_date = datetime.strptime(expires_at.split("T")[0], "%Y-%m-%d").date()
+                    days_left = (exp_date - datetime.now().date()).days
+                    self.title(f"GinContent Post - Bản quyền còn {max(0, days_left)} ngày")
+            except:
+                pass
+        else:
+            self.show_license_screen(data_or_err)
+
+    def show_license_screen(self, err_msg):
+        self.grid_rowconfigure((0,1,2), weight=1)
+        self.grid_columnconfigure((0,1,2), weight=1)
+        
+        frame = ctk.CTkFrame(self, fg_color=self.BG_CARD, corner_radius=15, border_width=1, border_color=self.BORDER_COLOR)
+        frame.grid(row=1, column=1, sticky="nsew", padx=20, pady=20)
+        
+        ctk.CTkLabel(frame, text="Yêu Cầu Kích Hoạt", font=self.TITLE_FONT, text_color=self.PRIMARY).pack(pady=(40, 10))
+        ctk.CTkLabel(frame, text=err_msg, font=self.MAIN_FONT, text_color="#ef4444", wraplength=450).pack(pady=(0, 20))
+        
+        self.entry_key = ctk.CTkEntry(frame, placeholder_text="Nhập mã License Key...", width=350, height=45, font=self.MAIN_FONT, border_color=self.BORDER_COLOR, fg_color="#070a13", text_color=self.TEXT_MAIN)
+        self.entry_key.pack(pady=10)
+        
+        self.btn_activate = ctk.CTkButton(frame, text="Kích Hoạt Ngay", font=self.BOLD_FONT, height=45, width=220, command=self.activate_key, fg_color=self.PRIMARY, hover_color=self.PRIMARY_HOVER, corner_radius=8)
+        self.btn_activate.pack(pady=20)
+        
+    def activate_key(self):
+        key = self.entry_key.get().strip()
+        self.btn_activate.configure(state="disabled", text="Đang kiểm tra...")
+        self.update_idletasks()
+        
+        def run():
+            valid, msg = licensing.activate_online(key)
+            if valid:
+                self.after(0, lambda: messagebox.showinfo("Thành công", "Kích hoạt bản quyền thành công!"))
+                self.after(0, self.check_license_on_startup)
+            else:
+                self.after(0, lambda: messagebox.showerror("Lỗi Kích Hoạt", msg))
+                self.after(0, lambda: self.btn_activate.configure(state="normal", text="Kích Hoạt Ngay"))
+                
+        threading.Thread(target=run, daemon=True).start()
         
     def create_widgets(self):
         # ================= HEADER =================
         header_frame = ctk.CTkFrame(self, fg_color="transparent")
         header_frame.grid(row=0, column=0, sticky="ew", padx=40, pady=(30, 10))
         
+        # Load và hiển thị Logo
+        try:
+            logo_img = ctk.CTkImage(light_image=Image.open(resource_path("logo.png")), dark_image=Image.open(resource_path("logo.png")), size=(45, 45))
+            logo_label = ctk.CTkLabel(header_frame, image=logo_img, text="")
+            logo_label.pack(side="left", padx=(0, 15))
+        except Exception:
+            pass
+            
         ctk.CTkLabel(header_frame, text="GinContent", font=self.TITLE_FONT, text_color=self.TEXT_MAIN).pack(side="left")
         ctk.CTkLabel(header_frame, text="Post", font=("Product Sans", 28), text_color=self.ACCENT).pack(side="left", padx=(5, 10))
         ctk.CTkLabel(header_frame, text="Tự động đồng bộ nội dung từ Google Drive", font=self.MAIN_FONT, text_color=self.TEXT_MUTED).pack(side="left", pady=(8, 0))
@@ -236,8 +310,9 @@ class GinContentPostApp(ctk.CTk):
                 title, meta_desc, body_html = parse_docx(docx_file, images, wp_upload_callback)
                 
                 # 4. Create Post
-                self.log(f"   [+] Đăng bài: {title}")
-                post_res = create_post(url, user, password, title, body_html, cat_id, meta_desc)
+                slug_name = os.path.splitext(os.path.basename(docx_file))[0]
+                self.log(f"   [+] Đăng bài: {title} (Slug: {slug_name})")
+                post_res = create_post(url, user, password, title, body_html, cat_id, meta_desc, slug_name)
                 
                 self.log(f"   [V] THÀNH CÔNG! Link nháp: {post_res.get('link')}")
                 success_count += 1
