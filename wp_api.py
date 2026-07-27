@@ -50,12 +50,14 @@ def upload_media(url, username, password, file_path, alt_text):
         update_url = f"{api_url}/{media_id}"
         update_headers = get_auth_headers(username, password)
         update_data = {
-            'title': alt_text,
+            'title': {'raw': alt_text},
             'alt_text': alt_text,
-            'description': alt_text,
-            'caption': alt_text
+            'description': {'raw': alt_text},
+            'caption': {'raw': alt_text}
         }
-        requests.post(update_url, json=update_data, headers=update_headers)
+        update_res = requests.post(update_url, json=update_data, headers=update_headers)
+        if update_res.status_code >= 400:
+            print(f"Warning updating media meta: {update_res.text}")
         
         return {
             'id': media_id,

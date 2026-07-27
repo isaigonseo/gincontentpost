@@ -9,6 +9,13 @@ import os
 import sys
 import io
 from datetime import datetime
+import urllib.request
+import certifi
+
+# Fix SSL certificate cho máy lạ (Fix SSL_CERTIFICATE_VERIFY_FAILED)
+os.environ['SSL_CERT_FILE'] = certifi.where()
+os.environ['REQUESTS_CA_BUNDLE'] = certifi.where()
+
 import licensing
 from PIL import Image
 
@@ -348,7 +355,7 @@ class GinContentPostApp(ctk.CTk):
                 err_msg = str(e)
                 trace = traceback.format_exc()
                 self.log(f"   [X] LỖI: {err_msg}")
-                print(trace)
+                self.log(f"   [ Chi tiết lỗi: {trace} ]")
                 error_count += 1
             finally:
                 # Cleanup temp dir for this link
