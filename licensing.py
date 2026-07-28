@@ -30,7 +30,8 @@ def get_hwid():
     try:
         if sys.platform == "win32":
             cmd = "wmic csproduct get uuid"
-            lines = subprocess.check_output(cmd, shell=True).decode(errors='ignore').split("\n")
+            creationflags = 0x08000000
+            lines = subprocess.check_output(cmd, shell=True, creationflags=creationflags).decode(errors='ignore').split("\n")
             if len(lines) > 1:
                 uuid_out = lines[1].strip()
     except Exception:

@@ -11,10 +11,13 @@ import io
 from datetime import datetime
 import urllib.request
 import certifi
+import urllib3
+import requests
 
 # Fix SSL certificate cho máy lạ (Fix SSL_CERTIFICATE_VERIFY_FAILED)
 os.environ['SSL_CERT_FILE'] = certifi.where()
 os.environ['REQUESTS_CA_BUNDLE'] = certifi.where()
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 import licensing
 from PIL import Image
@@ -351,6 +354,9 @@ class GinContentPostApp(ctk.CTk):
                 self.log(f"   [V] THÀNH CÔNG! Link: {link}")
                 success_count += 1
                 
+            except requests.exceptions.Timeout:
+                self.log("   [X] LỖI: Website WordPress phản hồi quá chậm (Timeout). Vui lòng kiểm tra lại hosting hoặc server.")
+                error_count += 1
             except Exception as e:
                 err_msg = str(e)
                 trace = traceback.format_exc()

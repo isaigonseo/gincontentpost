@@ -1,0 +1,13 @@
+HƯỚNG DẪN MỞ PHẦN MỀM TRÊN MACOS (CHỈ CẦN LÀM 1 LẦN DUY NHẤT)
+
+Vì phần mềm được chia sẻ độc lập và không tải từ App Store nên macOS sẽ hiển thị cảnh báo "App is damaged and can't be opened" (Ứng dụng bị hỏng và không thể mở) để bảo vệ bạn. 
+
+Để mở phần mềm, bạn chỉ cần làm 2 bước cực kỳ đơn giản sau đây:
+
+Bước 1: Kéo thả ứng dụng "GinContent Post" vào thư mục "Applications" (Ứng dụng) trên máy Mac của bạn.
+
+Bước 2: Mở ứng dụng "Terminal" trên Mac (Bấm Command + Space, gõ Terminal và Enter). Sau đó copy và dán chính xác dòng lệnh dưới đây vào Terminal rồi ấn Enter:
+
+xattr -cr "/Applications/GinContent Post.app"
+
+Vậy là xong! Bây giờ bạn có thể mở ứng dụng GinContent Post trong thư mục Applications và sử dụng vĩnh viễn bình thường như mọi phần mềm khác.

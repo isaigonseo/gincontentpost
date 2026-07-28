@@ -1,6 +1,9 @@
 import requests
 import os
 import base64
+import urllib.parse
+from unidecode import unidecode
+import re
 
 def get_auth_headers(username, password):
     auth_string = f"{username}:{password}"
@@ -13,7 +16,7 @@ def get_auth_headers(username, password):
 def get_categories(url, username, password):
     api_url = f"{url.rstrip('/')}/wp-json/wp/v2/categories"
     headers = get_auth_headers(username, password)
-    response = requests.get(api_url, headers=headers, params={'per_page': 100})
+    response = requests.get(api_url, headers=headers, params={'per_page': 100}, verify=False, timeout=30)
     if response.status_code == 200:
         return response.json()
     else:
@@ -27,18 +30,33 @@ def upload_media(url, username, password, file_path, alt_text):
         file_data = f.read()
 
     headers = get_auth_headers(username, password)
-    headers['Content-Disposition'] = f'attachment; filename="{file_name}"'
-    headers['Content-Type'] = 'image/jpeg' # Simplification, WordPress will detect actual type
-
+    
+    content_type = 'image/jpeg'
     if file_name.lower().endswith('.png'):
-        headers['Content-Type'] = 'image/png'
+        content_type = 'image/png'
     elif file_name.lower().endswith('.webp'):
-        headers['Content-Type'] = 'image/webp'
+        content_type = 'image/webp'
+    elif file_name.lower().endswith('.gif'):
+        content_type = 'image/gif'
+
+    name, ext = os.path.splitext(file_name)
+    clean_name = unidecode(name).lower()
+    clean_name = re.sub(r'[^a-z0-9-]', '-', clean_name)
+    clean_name = re.sub(r'-+', '-', clean_name).strip('-')
+    if not clean_name:
+        clean_name = "image"
+    clean_name += ext
+
+    files = {
+        'file': (clean_name, file_data, content_type)
+    }
 
     response = requests.post(
         api_url,
         headers=headers,
-        data=file_data
+        files=files,
+        verify=False,
+        timeout=60
     )
 
     if response.status_code == 201:
@@ -55,7 +73,7 @@ def upload_media(url, username, password, file_path, alt_text):
             'description': {'raw': alt_text},
             'caption': {'raw': alt_text}
         }
-        update_res = requests.post(update_url, json=update_data, headers=update_headers)
+        update_res = requests.post(update_url, json=update_data, headers=update_headers, verify=False, timeout=30)
         if update_res.status_code >= 400:
             print(f"Warning updating media meta: {update_res.text}")
         
@@ -112,7 +130,8 @@ def create_post(url, username, password, title, body, category_id, meta_desc, sl
     headers['Content-Type'] = 'application/json'
 
     # Send without auth=(username, password) tuple so requests doesn't override our headers or drop them
-    response = requests.post(api_url, json=data, headers=headers)
+    response = requests.post(api_url, json=data, headers=headers, verify=False, timeout=45)
+
     
     # Debug info if 401 happens
     if response.status_code == 401:

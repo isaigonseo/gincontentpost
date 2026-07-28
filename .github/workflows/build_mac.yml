@@ -7,7 +7,16 @@ on:
 
 jobs:
   build:
-    runs-on: macos-13
+    name: Build on ${{ matrix.os }} (${{ matrix.arch }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: macos-13
+            arch: intel
+          - os: macos-14
+            arch: silicon
+    
     steps:
     - uses: actions/checkout@v4
     
@@ -25,11 +34,20 @@ jobs:
     - name: Build with PyInstaller
       run: |
         pyinstaller --noconfirm --windowed --add-data "logo.png:." --add-data "icon.ico:." --collect-data "certifi" --name "GinContent Post" main.py
+        
+        # Copy guide into DMG folder if it exists
+        if [ -f "HUONG_DAN_MAC.txt" ]; then
+          cp HUONG_DAN_MAC.txt "dist/"
+        fi
+        
+        # Make the executable run
         chmod +x "dist/GinContent Post.app/Contents/MacOS/GinContent Post"
-        hdiutil create -volname "GinContent Post" -srcfolder "dist/GinContent Post.app" -ov -format UDZO "dist/GinContent-Post.dmg"
+        
+        # Build DMG containing both the App and the Guide
+        hdiutil create -volname "GinContent Post" -srcfolder "dist/" -ov -format UDZO "GinContent-Post-Mac-${{ matrix.arch }}.dmg"
         
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: GinContent-Post-Mac
-        path: dist/GinContent-Post.dmg
+        name: GinContent-Post-Mac-${{ matrix.arch }}
+        path: GinContent-Post-Mac-${{ matrix.arch }}.dmg
