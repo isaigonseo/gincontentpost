@@ -142,13 +142,10 @@ def parse_docx(file_path, image_files, wp_upload_media_func, post_type="posts"):
                     img_url = img_res['url'] if isinstance(img_res, dict) else img_res
                     media_id = img_res['id'] if isinstance(img_res, dict) else ""
                     
-                    if is_category:
-                        img_html = f'<p style="text-align: center;"><img src="{img_url}" alt="{alt_text}" title="{alt_text}" class="aligncenter" style="margin: 0 auto;" /><br/><em>{alt_text}</em></p>'
+                    if media_id:
+                        img_html = f'[caption id="attachment_{media_id}" align="aligncenter" width="800"]<img src="{img_url}" alt="{alt_text}" title="{alt_text}" class="wp-image-{media_id} size-full" /> {alt_text}[/caption]'
                     else:
-                        if media_id:
-                            img_html = f'[caption id="attachment_{media_id}" align="aligncenter" width="800"]<img src="{img_url}" alt="{alt_text}" title="{alt_text}" class="wp-image-{media_id} size-full" /> {alt_text}[/caption]'
-                        else:
-                            img_html = f'<p style="text-align: center;"><img src="{img_url}" alt="{alt_text}" title="{alt_text}" class="aligncenter" style="margin: 0 auto;" /></p>'
+                        img_html = f'<p style="text-align: center;"><img src="{img_url}" alt="{alt_text}" title="{alt_text}" class="aligncenter" style="margin: 0 auto;" /></p>'
                     
                     html_lines.append(img_html)
                 except Exception as e:
@@ -201,18 +198,18 @@ def parse_docx(file_path, image_files, wp_upload_media_func, post_type="posts"):
                     try:
                         level = int(style_name.replace('Heading ', ''))
                         if is_category:
-                            html_lines.append(f'<h{level}>{p_html}</h{level}>')
+                            html_lines.append(f'<h{level} style="text-align: left;">{p_html}</h{level}>')
                         else:
                             html_lines.append(f'<!-- wp:heading {{"level":{level}}} -->\n<h{level} class="wp-block-heading">{p_html}</h{level}>\n<!-- /wp:heading -->')
                     except:
                         if is_category:
-                            html_lines.append(f"<p>{p_html}</p>")
+                            html_lines.append(f'<p style="text-align: left;">{p_html}</p>')
                         else:
                             html_lines.append(f"<!-- wp:paragraph -->\n<p>{p_html}</p>\n<!-- /wp:paragraph -->")
                 else:
                     close_lists()
                     if is_category:
-                        html_lines.append(f"<p>{p_html}</p>")
+                        html_lines.append(f'<p style="text-align: left;">{p_html}</p>')
                     else:
                         html_lines.append(f"<!-- wp:paragraph -->\n<p>{p_html}</p>\n<!-- /wp:paragraph -->")
                     
