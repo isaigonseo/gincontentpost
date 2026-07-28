@@ -65,23 +65,21 @@ def upload_media(url, username, password, file_path, alt_text):
         media_id = media_info['id']
         source_url = media_info['source_url']
         
-        # Second request: Update the metadata via POST JSON
-        # Must use POST to avoid WAF PUT blocking.
-        # Must use JSON with {'raw': ...} because WP REST API Schema Validator requires 'caption' to be an object.
-        update_url = f"{api_url}/{media_id}"
+        # Second request: Update the metadata via URL parameters to bypass any body-parsing issues
+        import urllib.parse
+        encoded_alt = urllib.parse.quote(alt_text)
+        update_url = f"{api_url}/{media_id}?caption={encoded_alt}&title={encoded_alt}&description={encoded_alt}&alt_text={encoded_alt}"
         update_headers = get_auth_headers(username, password)
-        update_headers['Content-Type'] = 'application/json'
         
-        update_data = {
-            'title': {'raw': alt_text},
-            'caption': {'raw': alt_text},
-            'description': {'raw': alt_text},
-            'alt_text': alt_text
-        }
-        
-        update_res = requests.post(update_url, json=update_data, headers=update_headers, verify=False, timeout=30)
+        update_res = requests.post(update_url, headers=update_headers, verify=False, timeout=30)
         
         if update_res.status_code >= 400:
+            import tkinter as tk
+            from tkinter import messagebox
+            root = tk.Tk()
+            root.withdraw()
+            messagebox.showerror("Lỗi Cập nhật Media", f"Lỗi từ WP API khi cập nhật Chú thích: {update_res.status_code}\n{update_res.text}")
+            root.destroy()
             print(f"Warning: Failed to update metadata for image {media_id}. Status: {update_res.status_code}. Response: {update_res.text}")
         
         return {
