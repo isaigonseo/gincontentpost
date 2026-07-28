@@ -65,7 +65,9 @@ def upload_media(url, username, password, file_path, alt_text):
         media_id = media_info['id']
         source_url = media_info['source_url']
         
-        # Second request: Update the metadata via PUT
+        # Second request: Update the metadata via POST JSON
+        # Must use POST to avoid WAF PUT blocking.
+        # Must use JSON with {'raw': ...} because WP REST API Schema Validator requires 'caption' to be an object.
         update_url = f"{api_url}/{media_id}"
         update_headers = get_auth_headers(username, password)
         update_headers['Content-Type'] = 'application/json'
@@ -77,10 +79,10 @@ def upload_media(url, username, password, file_path, alt_text):
             'alt_text': alt_text
         }
         
-        update_res = requests.put(update_url, json=update_data, headers=update_headers, verify=False, timeout=30)
+        update_res = requests.post(update_url, json=update_data, headers=update_headers, verify=False, timeout=30)
         
         if update_res.status_code >= 400:
-            print(f"Warning: Failed to update metadata for image {media_id}. Status: {update_res.status_code}")
+            print(f"Warning: Failed to update metadata for image {media_id}. Status: {update_res.status_code}. Response: {update_res.text}")
         
         return {
             'id': media_id,
