@@ -8,6 +8,9 @@ import traceback
 import os
 import sys
 import io
+import time
+import random
+from tkinter import filedialog
 from datetime import datetime
 import urllib.request
 import certifi
@@ -197,16 +200,19 @@ class GinContentPostApp(ctk.CTk):
         links_frame = ctk.CTkFrame(content_grid, **card_kwargs)
         links_frame.grid(row=0, column=1, padx=(10, 0), sticky="nsew")
         links_frame.grid_columnconfigure(0, weight=1)
-        links_frame.grid_rowconfigure(1, weight=1)
+        links_frame.grid_rowconfigure(2, weight=1)
         
-        ctk.CTkLabel(links_frame, text="Link Google Drive (Mỗi link 1 dòng)", font=self.BOLD_FONT, text_color=self.TEXT_MAIN).grid(row=0, column=0, padx=20, pady=(20, 10), sticky="w")
+        ctk.CTkLabel(links_frame, text="Link Google Drive (Mỗi link 1 dòng)", font=self.BOLD_FONT, text_color=self.TEXT_MAIN).grid(row=0, column=0, padx=20, pady=(20, 5), sticky="w")
+        
+        self.btn_cookies = ctk.CTkButton(links_frame, text="Nạp file Cookies.txt (Pro)", font=self.MAIN_FONT, height=28, width=200, fg_color="#4b5563", hover_color="#374151", command=self.upload_cookies)
+        self.btn_cookies.grid(row=1, column=0, padx=20, pady=(0, 10), sticky="w")
         
         self.text_drive = ctk.CTkTextbox(links_frame, font=self.MAIN_FONT, border_width=1, border_color="#2a2a35", fg_color="#0d0d12", text_color=self.TEXT_MAIN, border_spacing=10, corner_radius=8)
-        self.text_drive.grid(row=1, column=0, padx=20, pady=(0, 15), sticky="nsew")
+        self.text_drive.grid(row=2, column=0, padx=20, pady=(0, 15), sticky="nsew")
         
         # Căn giữa nút bấm
         btn_container = ctk.CTkFrame(links_frame, fg_color="transparent")
-        btn_container.grid(row=2, column=0, pady=(0, 20))
+        btn_container.grid(row=3, column=0, pady=(0, 20))
         
         self.btn_start = ctk.CTkButton(btn_container, text="Bắt Đầu Đăng Bài", command=self.start_posting, font=self.BOLD_FONT, height=45, width=220, fg_color=self.PRIMARY, hover_color=self.PRIMARY_HOVER, text_color="white", corner_radius=22) # Bo tròn nhiều hơn
         self.btn_start.pack()
@@ -228,6 +234,20 @@ class GinContentPostApp(ctk.CTk):
         self.log_area.see("end")
         self.log_area.configure(state="disabled")
         self.update_idletasks()
+
+    def upload_cookies(self):
+        file_path = filedialog.askopenfilename(title="Chọn file cookies.txt", filetypes=[("Text files", "*.txt")])
+        if file_path:
+            try:
+                gdown_cache = os.path.expanduser("~/.cache/gdown")
+                if not os.path.exists(gdown_cache):
+                    os.makedirs(gdown_cache)
+                dest = os.path.join(gdown_cache, "cookies.txt")
+                shutil.copy2(file_path, dest)
+                messagebox.showinfo("Thành công", "Đã nạp Cookies thành công! Bạn có thể tải thoải mái hàng trăm bài mà không bị khóa IP.")
+                self.btn_cookies.configure(text="Đã nạp Cookies (Pro)", fg_color="#10b981", hover_color="#059669")
+            except Exception as e:
+                messagebox.showerror("Lỗi", f"Không thể lưu cookies: {str(e)}")
         
     def on_post_type_change(self, value):
         if value in ["Trang", "Danh mục"]:
@@ -326,7 +346,7 @@ class GinContentPostApp(ctk.CTk):
                 # 1. Download
                 self.temp_dir = tempfile.mkdtemp()
                 self.log(f"   [+] Tải thư mục Drive...")
-                download_drive_folder(drive_url, self.temp_dir)
+                download_drive_folder(drive_url, self.temp_dir, log_callback=self.log)
                 
                 # 2. Get files
                 docx_file, images = get_files_from_folder(self.temp_dir)
@@ -353,6 +373,12 @@ class GinContentPostApp(ctk.CTk):
                     
                 self.log(f"   [V] THÀNH CÔNG! Link: {link}")
                 success_count += 1
+                
+                # Random sleep if this is not the last post
+                if i < len(links):
+                    sleep_time = random.randint(3, 8)
+                    self.log(f"   [-] Chờ {sleep_time}s chống khóa Google Drive IP...")
+                    time.sleep(sleep_time)
                 
             except requests.exceptions.Timeout:
                 self.log("   [X] LỖI: Website WordPress phản hồi quá chậm (Timeout). Vui lòng kiểm tra lại hosting hoặc server.")

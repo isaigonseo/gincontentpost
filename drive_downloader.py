@@ -1,8 +1,9 @@
 import gdown
 import os
 import shutil
+import time
 
-def download_drive_folder(url, dest_folder):
+def download_drive_folder(url, dest_folder, log_callback=None):
     """
     Downloads a public Google Drive folder to dest_folder.
     Returns the path to the downloaded folder.
@@ -10,19 +11,30 @@ def download_drive_folder(url, dest_folder):
     if not os.path.exists(dest_folder):
         os.makedirs(dest_folder)
         
-    print(f"Downloading from {url} to {dest_folder}...")
+    if log_callback:
+        log_callback(f"Downloading from {url} to {dest_folder}...")
+    else:
+        print(f"Downloading from {url} to {dest_folder}...")
     
-    # gdown download_folder normally downloads directly into current directory or specified output
-    # but the API can be a bit tricky depending on the version. 
-    # Let's try gdown.download_folder
-    
-    # download_folder downloads into a folder named as the Drive folder name inside output
-    # or directly into output if it's already a folder
-    try:
-        downloaded_paths = gdown.download_folder(url, output=dest_folder, use_cookies=False, quiet=True)
-        return downloaded_paths
-    except Exception as e:
-        raise Exception(f"Lỗi tải thư mục Google Drive: {str(e)}")
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            # use_cookies=True cho phép gdown đọc ~/.cache/gdown/cookies.txt nếu có
+            downloaded_paths = gdown.download_folder(url, output=dest_folder, use_cookies=True, quiet=True)
+            return downloaded_paths
+        except Exception as e:
+            err_str = str(e)
+            if "FileURLRetrievalError" in err_str or "Cannot retrieve" in err_str:
+                if attempt < max_retries - 1:
+                    wait_time = 60 * (attempt + 1)
+                    msg = f"   [!] Google Drive chặn tạm thời (Rate Limit). Đang nghỉ giải lao {wait_time} giây để thử lại (Lần {attempt + 1}/{max_retries - 1})..."
+                    if log_callback:
+                        log_callback(msg)
+                    else:
+                        print(msg)
+                    time.sleep(wait_time)
+                    continue
+            raise Exception(f"Lỗi tải thư mục Google Drive: {err_str}")
 
 def get_files_from_folder(folder_path):
     """
