@@ -47,15 +47,14 @@ def upload_media(url, username, password, file_path, alt_text):
         clean_name = "image"
     clean_name += ext
 
-    # First request: Upload the file
-    files = {
-        'file': (clean_name, file_data, content_type)
-    }
+    # First request: Upload the file using RAW POST body (crucial for WP REST API to allow subsequent metadata updates)
+    headers['Content-Disposition'] = f'attachment; filename="{clean_name}"'
+    headers['Content-Type'] = content_type
 
     response = requests.post(
         api_url,
         headers=headers,
-        files=files,
+        data=file_data,
         verify=False,
         timeout=60
     )
@@ -65,13 +64,19 @@ def upload_media(url, username, password, file_path, alt_text):
         media_id = media_info['id']
         source_url = media_info['source_url']
         
-        # Second request: Update the metadata via URL parameters to bypass any body-parsing issues
-        import urllib.parse
-        encoded_alt = urllib.parse.quote(alt_text)
-        update_url = f"{api_url}/{media_id}?caption={encoded_alt}&title={encoded_alt}&description={encoded_alt}&alt_text={encoded_alt}"
+        # Second request: Update the metadata via POST JSON
+        update_url = f"{api_url}/{media_id}"
         update_headers = get_auth_headers(username, password)
+        # Note: Do not manually set Content-Type to application/json, let requests handle it via json= param
         
-        update_res = requests.post(update_url, headers=update_headers, verify=False, timeout=30)
+        update_data = {
+            'title': {'raw': alt_text},
+            'alt_text': alt_text,
+            'description': {'raw': alt_text},
+            'caption': {'raw': alt_text}
+        }
+        
+        update_res = requests.post(update_url, json=update_data, headers=update_headers, verify=False, timeout=30)
         
         if update_res.status_code >= 400:
             import tkinter as tk
