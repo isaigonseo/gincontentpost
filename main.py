@@ -204,6 +204,9 @@ class GinContentPostApp(ctk.CTk):
         
         ctk.CTkLabel(links_frame, text="Link Google Drive (Mỗi link 1 dòng)", font=self.BOLD_FONT, text_color=self.TEXT_MAIN).grid(row=0, column=0, padx=20, pady=(20, 5), sticky="w")
         
+        self.btn_cookies = ctk.CTkButton(links_frame, text="Nạp file Cookies.txt (Pro)", font=self.MAIN_FONT, height=28, width=200, fg_color="#4b5563", hover_color="#374151", command=self.upload_cookies)
+        self.btn_cookies.grid(row=1, column=0, padx=20, pady=(0, 10), sticky="w")
+        
         self.text_drive = ctk.CTkTextbox(links_frame, font=self.MAIN_FONT, border_width=1, border_color="#2a2a35", fg_color="#0d0d12", text_color=self.TEXT_MAIN, border_spacing=10, corner_radius=8)
         self.text_drive.grid(row=2, column=0, padx=20, pady=(0, 15), sticky="nsew")
         
@@ -231,6 +234,20 @@ class GinContentPostApp(ctk.CTk):
         self.log_area.see("end")
         self.log_area.configure(state="disabled")
         self.update_idletasks()
+
+    def upload_cookies(self):
+        file_path = filedialog.askopenfilename(title="Chọn file Cookies.txt", filetypes=[("Text files", "*.txt")])
+        if file_path:
+            try:
+                gdown_cache = os.path.expanduser("~/.cache/gdown")
+                if not os.path.exists(gdown_cache):
+                    os.makedirs(gdown_cache)
+                dest = os.path.join(gdown_cache, "cookies.txt")
+                shutil.copy2(file_path, dest)
+                messagebox.showinfo("Thành công", "Đã nạp Cookies thành công! Bạn có thể tải thoải mái hàng trăm bài mà không bị khóa IP.")
+                self.btn_cookies.configure(text="Đã nạp Cookies (Pro)", fg_color="#10b981", hover_color="#059669")
+            except Exception as e:
+                messagebox.showerror("Lỗi", f"Không thể lưu cookies: {str(e)}")
 
     def on_post_type_change(self, value):
         if value in ["Trang", "Danh mục"]:
