@@ -360,7 +360,7 @@ class GinContentPostApp(ctk.CTk):
                     self.log(f"       -> Upload ảnh: {alt_text}")
                     return upload_media(url, user, password, file_path, alt_text)
                     
-                title, meta_desc, body_html, thumbnail_id = parse_docx(docx_file, images, wp_upload_callback)
+                title, meta_desc, body_html, thumbnail_id = parse_docx(docx_file, images, wp_upload_callback, post_type=api_post_type)
                 
                 # 4. Create Post
                 slug_name = os.path.splitext(os.path.basename(docx_file))[0]

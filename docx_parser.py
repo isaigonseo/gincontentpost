@@ -32,11 +32,12 @@ def iter_block_items(parent):
         elif child.__class__.__name__ == 'CT_Tbl':
             yield Table(child, parent)
 
-def parse_docx(file_path, image_files, wp_upload_media_func):
+def parse_docx(file_path, image_files, wp_upload_media_func, post_type="posts"):
     """
     Parses docx, uploads matching images via wp_upload_media_func, 
     and returns (title, meta_desc, body_html).
     """
+    is_category = (post_type == "categories")
     doc = Document(file_path)
     
     blocks = []
@@ -98,23 +99,30 @@ def parse_docx(file_path, image_files, wp_upload_media_func):
     def close_lists():
         nonlocal in_ul, in_ol, html_lines
         if in_ul:
-            html_lines.append('</ul>\n<!-- /wp:list -->')
+            html_lines.append('</ul>' if is_category else '</ul>\n<!-- /wp:list -->')
             in_ul = False
         if in_ol:
-            html_lines.append('</ol>\n<!-- /wp:list -->')
-            in_ol = False
+            html_lines.append('</ol>' if is_category else '</ol>\n<!-- /wp:list -->')
 
     for block in body_blocks:
         if isinstance(block, Table):
             close_lists()
-            html_lines.append('<!-- wp:table -->\n<figure class="wp-block-table"><table>\n<tbody>')
+            if is_category:
+                html_lines.append('<table border="1">\n<tbody>')
+            else:
+                html_lines.append('<!-- wp:table -->\n<figure class="wp-block-table"><table>\n<tbody>')
+            
             for row in block.rows:
                 html_lines.append('<tr>')
                 for cell in row.cells:
                     cell_text = cell.text.strip().replace('\n', '<br/>')
                     html_lines.append(f'<td>{cell_text}</td>')
                 html_lines.append('</tr>')
-            html_lines.append('</tbody>\n</table></figure>\n<!-- /wp:table -->')
+                
+            if is_category:
+                html_lines.append('</tbody>\n</table>')
+            else:
+                html_lines.append('</tbody>\n</table></figure>\n<!-- /wp:table -->')
             
         elif isinstance(block, Paragraph):
             text = block.text.strip()
@@ -134,14 +142,20 @@ def parse_docx(file_path, image_files, wp_upload_media_func):
                     img_url = img_res['url'] if isinstance(img_res, dict) else img_res
                     media_id = img_res['id'] if isinstance(img_res, dict) else ""
                     
-                    if media_id:
-                        img_html = f'[caption id="attachment_{media_id}" align="aligncenter" width="800"]<img src="{img_url}" alt="{alt_text}" title="{alt_text}" class="wp-image-{media_id} size-full" /> {alt_text}[/caption]'
+                    if is_category:
+                        img_html = f'<p style="text-align: center;"><img src="{img_url}" alt="{alt_text}" title="{alt_text}" class="aligncenter" style="margin: 0 auto;" /><br/><em>{alt_text}</em></p>'
                     else:
-                        img_html = f'<p style="text-align: center;"><img src="{img_url}" alt="{alt_text}" title="{alt_text}" class="aligncenter" style="margin: 0 auto;" /></p>'
+                        if media_id:
+                            img_html = f'[caption id="attachment_{media_id}" align="aligncenter" width="800"]<img src="{img_url}" alt="{alt_text}" title="{alt_text}" class="wp-image-{media_id} size-full" /> {alt_text}[/caption]'
+                        else:
+                            img_html = f'<p style="text-align: center;"><img src="{img_url}" alt="{alt_text}" title="{alt_text}" class="aligncenter" style="margin: 0 auto;" /></p>'
                     
                     html_lines.append(img_html)
                 except Exception as e:
-                    html_lines.append(f'<!-- wp:paragraph -->\n<p style="color:red;">Lỗi upload ảnh {os.path.basename(img_file_path)}: {str(e)}</p>\n<!-- /wp:paragraph -->')
+                    if is_category:
+                        html_lines.append(f'<p style="color:red;">Lỗi upload ảnh {os.path.basename(img_file_path)}: {str(e)}</p>')
+                    else:
+                        html_lines.append(f'<!-- wp:paragraph -->\n<p style="color:red;">Lỗi upload ảnh {os.path.basename(img_file_path)}: {str(e)}</p>\n<!-- /wp:paragraph -->')
             else:
                 p_html = ""
                 for run in block.runs:
@@ -173,25 +187,34 @@ def parse_docx(file_path, image_files, wp_upload_media_func):
                     if is_ordered:
                         if in_ul: close_lists()
                         if not in_ol:
-                            html_lines.append('<!-- wp:list {"ordered":true} -->\n<ol class="wp-block-list">')
+                            html_lines.append('<ol>' if is_category else '<!-- wp:list {"ordered":true} -->\n<ol class="wp-block-list">')
                             in_ol = True
                         html_lines.append(f"<li>{p_html}</li>")
                     else:
                         if in_ol: close_lists()
                         if not in_ul:
-                            html_lines.append('<!-- wp:list -->\n<ul class="wp-block-list">')
+                            html_lines.append('<ul>' if is_category else '<!-- wp:list -->\n<ul class="wp-block-list">')
                             in_ul = True
                         html_lines.append(f"<li>{p_html}</li>")
                 elif style_name.startswith('Heading'):
                     close_lists()
                     try:
                         level = int(style_name.replace('Heading ', ''))
-                        html_lines.append(f'<!-- wp:heading {{"level":{level}}} -->\n<h{level} class="wp-block-heading">{p_html}</h{level}>\n<!-- /wp:heading -->')
+                        if is_category:
+                            html_lines.append(f'<h{level}>{p_html}</h{level}>')
+                        else:
+                            html_lines.append(f'<!-- wp:heading {{"level":{level}}} -->\n<h{level} class="wp-block-heading">{p_html}</h{level}>\n<!-- /wp:heading -->')
                     except:
-                        html_lines.append(f"<!-- wp:paragraph -->\n<p>{p_html}</p>\n<!-- /wp:paragraph -->")
+                        if is_category:
+                            html_lines.append(f"<p>{p_html}</p>")
+                        else:
+                            html_lines.append(f"<!-- wp:paragraph -->\n<p>{p_html}</p>\n<!-- /wp:paragraph -->")
                 else:
                     close_lists()
-                    html_lines.append(f"<!-- wp:paragraph -->\n<p>{p_html}</p>\n<!-- /wp:paragraph -->")
+                    if is_category:
+                        html_lines.append(f"<p>{p_html}</p>")
+                    else:
+                        html_lines.append(f"<!-- wp:paragraph -->\n<p>{p_html}</p>\n<!-- /wp:paragraph -->")
                     
     close_lists()
                 
@@ -205,6 +228,9 @@ def parse_docx(file_path, image_files, wp_upload_media_func):
             thumb_res = wp_upload_media_func(thumb_path, title)
             thumbnail_media_id = thumb_res['id'] if isinstance(thumb_res, dict) else None
         except Exception as e:
-            html_lines.append(f'<!-- wp:paragraph -->\n<p style="color:red;">Lỗi upload ảnh đại diện: {str(e)}</p>\n<!-- /wp:paragraph -->')
+            if is_category:
+                html_lines.append(f'<p style="color:red;">Lỗi upload ảnh đại diện: {str(e)}</p>')
+            else:
+                html_lines.append(f'<!-- wp:paragraph -->\n<p style="color:red;">Lỗi upload ảnh đại diện: {str(e)}</p>\n<!-- /wp:paragraph -->')
     
     return title, meta_desc, body_html, thumbnail_media_id
