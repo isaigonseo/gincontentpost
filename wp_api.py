@@ -47,21 +47,14 @@ def upload_media(url, username, password, file_path, alt_text):
         clean_name = "image"
     clean_name += ext
 
+    # First request: Upload the file
     files = {
         'file': (clean_name, file_data, content_type)
-    }
-    
-    data = {
-        'title': alt_text,
-        'alt_text': alt_text,
-        'description': alt_text,
-        'caption': alt_text
     }
 
     response = requests.post(
         api_url,
         headers=headers,
-        data=data,
         files=files,
         verify=False,
         timeout=60
@@ -72,18 +65,22 @@ def upload_media(url, username, password, file_path, alt_text):
         media_id = media_info['id']
         source_url = media_info['source_url']
         
-        # Update alt text
+        # Second request: Update the metadata via PUT
         update_url = f"{api_url}/{media_id}"
         update_headers = get_auth_headers(username, password)
+        update_headers['Content-Type'] = 'application/json'
+        
         update_data = {
-            'title': alt_text,
-            'alt_text': alt_text,
-            'description': alt_text,
-            'caption': alt_text
+            'title': {'raw': alt_text},
+            'caption': {'raw': alt_text},
+            'description': {'raw': alt_text},
+            'alt_text': alt_text
         }
-        update_res = requests.post(update_url, json=update_data, headers=update_headers, verify=False, timeout=30)
+        
+        update_res = requests.put(update_url, json=update_data, headers=update_headers, verify=False, timeout=30)
+        
         if update_res.status_code >= 400:
-            print(f"Warning updating media meta: {update_res.text}")
+            print(f"Warning: Failed to update metadata for image {media_id}. Status: {update_res.status_code}")
         
         return {
             'id': media_id,
