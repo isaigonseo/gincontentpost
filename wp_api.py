@@ -50,10 +50,18 @@ def upload_media(url, username, password, file_path, alt_text):
     files = {
         'file': (clean_name, file_data, content_type)
     }
+    
+    data = {
+        'title': alt_text,
+        'alt_text': alt_text,
+        'description': alt_text,
+        'caption': alt_text
+    }
 
     response = requests.post(
         api_url,
         headers=headers,
+        data=data,
         files=files,
         verify=False,
         timeout=60
