@@ -135,9 +135,9 @@ def parse_docx(file_path, image_files, wp_upload_media_func):
                     media_id = img_res['id'] if isinstance(img_res, dict) else ""
                     
                     if media_id:
-                        img_html = f'<!-- wp:image {{"align":"center","id":{media_id},"sizeSlug":"full"}} -->\n<figure class="wp-block-image aligncenter size-full" style="text-align: center;"><img src="{img_url}" alt="{alt_text}" class="wp-image-{media_id}"/><figcaption class="wp-element-caption has-text-align-center" style="text-align: center;">{alt_text}</figcaption></figure>\n<!-- /wp:image -->'
+                        img_html = f'[caption id="attachment_{media_id}" align="aligncenter" width="800"]<img src="{img_url}" alt="{alt_text}" title="{alt_text}" class="wp-image-{media_id} size-full" /> {alt_text}[/caption]'
                     else:
-                        img_html = f'<!-- wp:image {{"align":"center"}} -->\n<figure class="wp-block-image aligncenter" style="text-align: center;"><img src="{img_url}" alt="{alt_text}"/><figcaption class="wp-element-caption has-text-align-center" style="text-align: center;">{alt_text}</figcaption></figure>\n<!-- /wp:image -->'
+                        img_html = f'<p style="text-align: center;"><img src="{img_url}" alt="{alt_text}" title="{alt_text}" class="aligncenter" style="margin: 0 auto;" /></p>'
                     
                     html_lines.append(img_html)
                 except Exception as e:
