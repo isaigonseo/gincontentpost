@@ -70,10 +70,11 @@ def upload_media(url, username, password, file_path, alt_text):
         # Note: Do not manually set Content-Type to application/json, let requests handle it via json= param
         
         update_data = {
-            'title': {'raw': alt_text},
+            'title': alt_text,
             'alt_text': alt_text,
-            'description': {'raw': alt_text},
-            'caption': {'raw': alt_text}
+            'description': alt_text,
+            'caption': alt_text,
+            'post_excerpt': alt_text
         }
         
         update_res = requests.post(update_url, json=update_data, headers=update_headers, verify=False, timeout=30)

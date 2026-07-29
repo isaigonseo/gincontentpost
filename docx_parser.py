@@ -142,10 +142,18 @@ def parse_docx(file_path, image_files, wp_upload_media_func, post_type="posts"):
                     img_url = img_res['url'] if isinstance(img_res, dict) else img_res
                     media_id = img_res['id'] if isinstance(img_res, dict) else ""
                     
-                    if media_id:
-                        img_html = f'[caption id="attachment_{media_id}" align="aligncenter" width="800"]<img src="{img_url}" alt="{alt_text}" title="{alt_text}" class="wp-image-{media_id} size-full" /> {alt_text}[/caption]'
+                    safe_alt_text = alt_text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;').replace('"', '&quot;')
+
+                    if is_category:
+                        if media_id:
+                            img_html = f'[caption id="attachment_{media_id}" align="aligncenter" width="800"]<img src="{img_url}" alt="{safe_alt_text}" title="{safe_alt_text}" class="wp-image-{media_id} size-full" /> {safe_alt_text}[/caption]'
+                        else:
+                            img_html = f'<p style="text-align: center;"><img src="{img_url}" alt="{safe_alt_text}" title="{safe_alt_text}" class="aligncenter" style="margin: 0 auto;" /></p>'
                     else:
-                        img_html = f'<p style="text-align: center;"><img src="{img_url}" alt="{alt_text}" title="{alt_text}" class="aligncenter" style="margin: 0 auto;" /></p>'
+                        if media_id:
+                            img_html = f'[caption id="attachment_{media_id}" align="aligncenter" width="800"]<img src="{img_url}" alt="{safe_alt_text}" class="aligncenter size-full wp-image-{media_id}" width="800" /> {safe_alt_text}[/caption]'
+                        else:
+                            img_html = f'[caption align="aligncenter" width="800"]<img src="{img_url}" alt="{safe_alt_text}" class="aligncenter" width="800" /> {safe_alt_text}[/caption]'
                     
                     html_lines.append(img_html)
                 except Exception as e:
@@ -215,6 +223,17 @@ def parse_docx(file_path, image_files, wp_upload_media_func, post_type="posts"):
                     
     close_lists()
                 
+    # Append global style to force alignment on frontend without breaking editor
+    if not is_category:
+        style_block = (
+            '<style>\n'
+            '.wp-caption.aligncenter { display: block !important; margin: 10px auto !important; text-align: center !important; float: none !important; width: auto !important; max-width: 100% !important; }\n'
+            '.wp-caption.aligncenter img { display: inline-block !important; margin: 0 auto !important; float: none !important; }\n'
+            '.wp-caption.aligncenter .wp-caption-text { text-align: center !important; display: block !important; margin-top: 5px !important; }\n'
+            '</style>\n'
+        )
+        html_lines.append(style_block)
+
     body_html = "\n".join(html_lines)
     
     thumbnail_media_id = None
